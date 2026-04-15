@@ -1,0 +1,16 @@
+# ML
+xgboost==2.0.3
+scikit-learn==1.4.2
+pandas==2.2.2
+numpy==1.26.4
+
+# API
+fastapi==0.111.0
+uvicorn[standard]==0.29.0
+pydantic==2.7.1
+
+# Load testing (dev only)
+locust==2.24.1
+
+# Experiment tracking (optional)
+clearml==1.16.2

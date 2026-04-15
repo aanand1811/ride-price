@@ -1,0 +1,40 @@
+version: "3.9"
+
+services:
+
+  # ── ML API ──────────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    image: ride-pricing-api:latest
+    container_name: ride-pricing-api
+    ports:
+      - "8000:8000"
+    environment:
+      - MODEL_DIR=models
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+
+  # ── Locust Load Tester (optional, run with: docker compose --profile load up) ──
+  locust:
+    image: locustio/locust:2.24.1
+    profiles: ["load"]
+    container_name: ride-pricing-locust
+    ports:
+      - "8089:8089"
+    volumes:
+      - ./tests:/mnt/locust
+      - ./results:/results
+    command: >
+      -f /mnt/locust/locustfile.py
+      --host http://api:8000
+    depends_on:
+      api:
+        condition: service_healthy
