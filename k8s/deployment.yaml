@@ -1,0 +1,135 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Kubernetes Manifests — Ride Pricing ML API
+# Deploy:  kubectl apply -f k8s/
+# ─────────────────────────────────────────────────────────────────────────────
+
+---
+# Namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ride-pricing
+
+---
+# Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ride-pricing-api
+  namespace: ride-pricing
+  labels:
+    app: ride-pricing-api
+spec:
+  replicas: 2                        # Initial replica count
+  selector:
+    matchLabels:
+      app: ride-pricing-api
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0              # Zero-downtime rollouts
+  template:
+    metadata:
+      labels:
+        app: ride-pricing-api
+    spec:
+      containers:
+        - name: ride-pricing-api
+          image: ride-pricing:latest   
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+          env:
+            - name: MODEL_DIR
+              value: "models"
+          resources:
+            requests:
+              cpu: "250m"            # 0.25 vCPU guaranteed
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"           # Up to 1 vCPU under load
+              memory: "1Gi"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            failureThreshold: 5
+
+---
+# Service (ClusterIP for internal; change to LoadBalancer for cloud exposure)
+apiVersion: v1
+kind: Service
+metadata:
+  name: ride-pricing-svc
+  namespace: ride-pricing
+spec:
+  selector:
+    app: ride-pricing-api
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8000
+  type: LoadBalancer
+
+---
+# Horizontal Pod Autoscaler
+# Requires: kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ride-pricing-hpa
+  namespace: ride-pricing
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ride-pricing-api
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 60    # Scale out when avg CPU > 60%
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 70    # Scale out when avg memory > 70%
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 30    # React to spikes quickly
+      policies:
+        - type: Pods
+          value: 2
+          periodSeconds: 30             # Add up to 2 pods every 30 s
+    scaleDown:
+      stabilizationWindowSeconds: 120   # Wait 2 min before scaling down
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 60
+
+---
+# ConfigMap (optional runtime configuration)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ride-pricing-config
+  namespace: ride-pricing
+data:
+  MODEL_DIR: "models"
+  LOG_LEVEL: "info"
