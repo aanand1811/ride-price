@@ -117,8 +117,9 @@ kubectl get hpa -n ride-pricing --watch
 kubectl get pods -n ride-pricing --watch
 ```
 
+> **Note:** This system is designed to be cloud-deployable (e.g., AWS EC2/EKS).  
+> The current implementation has been validated on a local Kubernetes cluster.
 
-Note: This system is designed to be cloud-deployable (e.g., AWS EC2/EKS). The current implementation is validated on a local Kubernetes cluster.
 ---
 
 ## Load Testing
