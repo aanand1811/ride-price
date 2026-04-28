@@ -20,12 +20,11 @@ from pydantic import BaseModel, Field
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# ── Globals loaded at startup ──────────────────────────────────────────────────
+# Globals loaded at startup 
 MODEL_DIR   = os.getenv("MODEL_DIR", "models")
 xgb_model   = None
 scaler      = None
 feature_cols = None
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -73,8 +72,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-# ── Schemas ────────────────────────────────────────────────────────────────────
+#  Schemas 
 
 class RideRequest(BaseModel):
     # Time features
@@ -87,7 +85,7 @@ class RideRequest(BaseModel):
     is_uber:      int   = Field(0,  ge=0, le=1,   description="1=Uber, 0=Lyft")
     service_tier: int   = Field(1,  ge=0, le=5,   description="0=Pool/Shared … 5=Lux Black XL")
 
-    # Weather features (optional — defaults to clear conditions)
+    # Weather features 
     temperature:          Optional[float] = Field(60.0,  description="Temperature (°F)")
     apparentTemperature:  Optional[float] = Field(60.0,  description="Feels-like temperature (°F)")
     humidity:             Optional[float] = Field(0.5,   ge=0, le=1)
@@ -116,7 +114,7 @@ class PriceResponse(BaseModel):
     model_version:     str = "xgboost-v1"
 
 
-# ── Helper ─────────────────────────────────────────────────────────────────────
+#  Helper 
 
 def build_feature_vector(req: RideRequest) -> np.ndarray:
     is_weekend   = int(req.day_of_week >= 5)
@@ -163,8 +161,7 @@ def estimate_surge(price: float, distance: float) -> float:
     return max(1.0, min(multiplier, 5.0))
 
 
-# ── Endpoints ──────────────────────────────────────────────────────────────────
-
+#  Endpoints 
 @app.get("/", tags=["Health"])
 def root():
     return {"status": "ok", "service": "Ride Pricing ML API", "version": "1.0.0"}
@@ -177,7 +174,6 @@ def health():
         "status": "healthy" if model_loaded else "degraded",
         "model_loaded": model_loaded
     }
-
 
 @app.post("/predict", response_model=PriceResponse, tags=["Prediction"])
 def predict(ride: RideRequest):
@@ -195,7 +191,6 @@ def predict(ride: RideRequest):
         price_tier       = price_tier(price),
         latency_ms       = round(latency, 3)
     )
-
 
 @app.post("/predict/batch", tags=["Prediction"])
 def predict_batch(rides: list[RideRequest]):
