@@ -1,3 +1,4 @@
+.Rhistory
 venv/
 __pycache__/
 *.pyc
